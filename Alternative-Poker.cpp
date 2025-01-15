@@ -1,17 +1,18 @@
 #include <iostream>
 #include <cmath>
+#include <ctime>
 using namespace std;
-
 
 struct Card {
     char name;
     char suit;
-    short value;
+    int value;
 };
 
 struct Player {
     Card hand[3];
     int balance = 0;
+    int score = 0;
 };
 
 enum CardValues {
@@ -20,24 +21,110 @@ enum CardValues {
 
 const char SUITS[4] = {'H', 'D', 'S', 'C'};
 const char CARD_NAMES[8] = {'A', 'K', 'Q', 'J', 'T', '9', '8', '7'};
-const short CARD_VALUES[8] = {Ace, King, Queen, Jack, Ten, Nine, Eight, Seven};
+const int CARD_VALUES[8] = {Ace, King, Queen, Jack, Ten, Nine, Eight, Seven};
 
 Card deck[32]; // Full deck of 32 cards
 int remainingIndices[32]; // Tracks available cards
 int remainingCount = 32;  // Tracks the number of remaining cards
 
+int CalculateHand(Player& player) {
+    Card* hand = player.hand;
+    int score = 0;
+
+    // Check for `7S` (7 of Spades)
+    bool has7S = false;
+    for (int i = 0; i < 3; ++i) {
+        if (hand[i].name == '7' && hand[i].suit == 'S') {
+            has7S = true;
+            break;
+        }
+    }
+
+    // Case 1: Three identical cards
+    if (hand[0].name == hand[1].name && hand[1].name == hand[2].name) {
+        if (hand[0].name == '7') {
+            score = 34; // Special case: three 7s
+        } else {
+            score = 3 * hand[0].value;
+        }
+    }
+    // Case 2: `7S` with two identical cards
+    else if (has7S && (hand[0].name == hand[1].name || hand[1].name == hand[2].name || hand[0].name == hand[2].name)) {
+        char identicalCard = hand[0].name == hand[1].name ? hand[0].name : hand[2].name;
+        int identicalCardValue = 0;
+
+        // Find the value of the identical card
+        for (int i = 0; i < 3; ++i) {
+            if (hand[i].name == identicalCard) {
+                identicalCardValue = hand[i].value;
+                break;
+            }
+        }
+
+        score = 2 * identicalCardValue + 11; // Rule for `7S` + two identical cards
+    }
+    // Case 3: All cards of the same suit (Flush)
+    else if (hand[0].suit == hand[1].suit && hand[1].suit == hand[2].suit) {
+        score = hand[0].value + hand[1].value + hand[2].value;
+    }
+    // Case 4: `7S` with two cards of the same suit
+    else if (has7S && (hand[0].suit == hand[1].suit || hand[1].suit == hand[2].suit || hand[0].suit == hand[2].suit)) {
+        int suitCardValue = 0;
+
+        for (int i = 0; i < 3; ++i) {
+            if (hand[i].suit == 'S') continue; // Ignore `7S`
+            suitCardValue += hand[i].value;
+        }
+
+        score = suitCardValue + 11; // Rule for `7S` + two same-suit cards
+    }
+    // Case 5: `7S` with unrelated cards
+    else if (has7S) {
+        int highestValue = 0;
+        for (int i = 0; i < 3; ++i) {
+            if (hand[i].suit == 'S' && hand[i].name == '7') continue; // Ignore `7S`
+            highestValue = std::max(highestValue, static_cast<int>(hand[i].value));
+        }
+
+        score = highestValue + 11;
+    }
+    // Case 6: No combinations
+    else {
+        int highestValue = 0;
+        for (int i = 0; i < 3; ++i) {
+            highestValue = std::max(highestValue, static_cast<int>(hand[i].value));
+        }
+
+        score = highestValue;
+    }
+
+    player.score = score; // Assign the calculated score to the player's balance
+    return score;
+}
+
 void InitializeRemainingIndices() {
+    srand(static_cast<unsigned>(time(0))); // ensures randomness every time the program is run
+    // Fill the remainingIndices array with indices from 0 to 31
     for (int i = 0; i < 32; ++i) {
         remainingIndices[i] = i;
     }
-    remainingCount = 32;
+
+    // Shuffle the remainingIndices array to randomize the deck
+    for (int i = 0; i < 32; ++i) {
+        int randIndex = rand() % 32; // Random index
+        int temp = remainingIndices[i];
+        remainingIndices[i] = remainingIndices[randIndex];
+        remainingIndices[randIndex] = temp;
+    }
+
+    remainingCount = 32; // Reset remaining count
 }
 
 // Returns a random undealt card
 Card* DealCard() {
     if (remainingCount == 0) {
         cout << "No cards remaining to deal!" << endl;
-        return nullptr; // Handle edge case if called incorrectly
+        return nullptr;
     }
 
     int randIndex = rand() % remainingCount; // Randomly pick an index within the remaining range
@@ -75,7 +162,7 @@ void FillDeck() {
     }
 }
 
-Player* FillPlayerArray(int players_count) {
+Player* FillPlayerArray(const int players_count) {
     Player* players = new Player[players_count];
     return players;
 }
@@ -98,8 +185,11 @@ void NewGame() {
     FillDeck();
     InitializeRemainingIndices(); // Initialize remaining indices
     DealCards(players, players_count);
+    for(int i = 0; i < players_count; i++)
+    {
+        cout << "Player " << (i+1) << " score: " << CalculateHand(players[i]) << endl;
+    }
     
-
     delete[] players; // Free dynamically allocated memory
 }
 
