@@ -22,7 +22,7 @@ void TakeInitialBet(Player* players, int players_count);
 bool Raise(Player& player, int& currentBet, int raiseAmount);
 bool Call(Player& player, int currentBet, int playerBet);
 void Fold(Player& player, int &activePlayers);
-void BettingRound(Player* players, const int players_count, int &currentBet);
+void BettingRound(Player* players, const int players_count, int currentBet);
 int CalculateHand(Player& player);
 void InitializeRemainingIndices();
 Card* DealCard();
@@ -30,13 +30,14 @@ void DealCards(Player*& players, const int players_count);
 void FillDeck();
 Player* CreatePlayerArray(const int players_count);
 void GameRound(Player*& players, const int players_count);
-bool LoadGame(Player*& players, int& players_count, const char* saveFile);
+void LoadGame(Player*& players, int& players_count, const char* saveFile);
 void SaveGame(Player* players, int players_count, const char* saveFile);
 bool FileEmptyOrNonExistent(const char* saveFile);
 bool CheckForContinue(Player*& players, int& players_count, const char* saveFile);
 void DisplayBalances(Player* players, const int players_count);
 void PlayersInTheTie(Player* players, const int players_count, const int highestCount, int * highestPlayers);
 void JoinTie(Player* players, const int players_count);
+void ZeroBalanceInTie(Player* players, const int players_count);
 
 enum CardValues {
     Ace = 11, King = 10, Queen = 10, Jack = 10, Ten = 10, Nine = 9, Eight = 8, Seven = 7
@@ -86,23 +87,33 @@ void JoinTie(Player* players, const int players_count) {
     pot += addToPot;
 }
 
+void ZeroBalanceInTie(Player* players, const int players_count) {
+    for(int i = 0; i < players_count; ++i) {
+        if(players[i].isActive && players[i].balance < 1) {
+            players[i].balance += 50;
+        }
+    }
+    return;
+}
+
+// Deactivate players whose hands are not tied for the win
 void PlayersInTheTie(Player* players, const int players_count, const int highestCount, int * highestPlayers) {
     if (players == nullptr) {
         cout << "Nullpointer error" << endl;
         return;
     }
     for (int p = 0; p < players_count; ++p) {
-            bool isInHighest = false;
-            for (int index = 0; index < highestCount; ++index) {
-                if (p == highestPlayers[index]) {
-                    isInHighest = true;
-                    break;
-                }
-            }
-            if (!isInHighest) {
-                players[p].isActive = false; // Deactivate players not in the highestPlayers array
+        bool isInHighest = false;
+        for (int index = 0; index < highestCount; ++index) {
+            if (p == highestPlayers[index]) {
+                isInHighest = true;
+                break;
             }
         }
+        if (!isInHighest) {
+            players[p].isActive = false; 
+        }
+    }
 }
 
 void InitializeBalances(Player* players, int players_count) {
@@ -161,12 +172,13 @@ void Fold(Player& player, int &activePlayers) {
     cout << "Player folded." << endl;
 }
 
-// Updated Betting Round with Correct Call and Raise Logic
-void BettingRound(Player* players, const int players_count, int &currentBet) {
+// The players give their bets
+void BettingRound(Player* players, const int players_count, int currentBet) {
     if (players == nullptr) {
         cout << "Nullpointer error" << endl;
         return;
     }
+    
     int* playerBets = new int[players_count](); // Track individual bets
     bool* hasActed = new bool[players_count](); // Track if a player has acted this round
     bool bettingComplete = false;
@@ -247,11 +259,15 @@ void BettingRound(Player* players, const int players_count, int &currentBet) {
     delete[] hasActed;
 }
 
-bool CheckForWinner(Player* players, const int players_count) {
+bool GameIsOver(Player* players, const int players_count) {
+    int remainingPlayers = 0;
     for(int i = 0; i < players_count; ++i) {
         if(players[i].balance > 0) {
-            return true;
+            remainingPlayers++;
         }
+    }
+    if (remainingPlayers < 2) {
+        return true;
     }
     return false;
 }
@@ -260,7 +276,7 @@ int CalculateHand(Player& player) {
     Card* hand = player.hand;
     int score = 0;
 
-    // Check for `7S` (7 of Spades)
+    // Check for 7S
     bool has7S = false;
     for (int i = 0; i < 3; ++i) {
         if (hand[i].name == '7' && hand[i].suit == 'S') {
@@ -277,7 +293,7 @@ int CalculateHand(Player& player) {
             score = 3 * hand[0].value;
         }
     }
-    // Case 2: `7S` with two identical cards
+    // Case 2: 7S with two identical cards
     else if (has7S && (hand[0].name == hand[1].name || hand[1].name == hand[2].name || hand[0].name == hand[2].name)) {
         char identicalCard = hand[0].name == hand[1].name ? hand[0].name : hand[2].name;
         int identicalCardValue = 0;
@@ -290,28 +306,28 @@ int CalculateHand(Player& player) {
             }
         }
 
-        score = 2 * identicalCardValue + 11; // Rule for `7S` + two identical cards
+        score = 2 * identicalCardValue + 11; // Rule for 7S + two identical cards
     }
-    // Case 3: All cards of the same suit (Flush)
+    // Case 3: All cards of the same suit
     else if (hand[0].suit == hand[1].suit && hand[1].suit == hand[2].suit) {
         score = hand[0].value + hand[1].value + hand[2].value;
     }
-    // Case 4: `7S` with two cards of the same suit
+    // Case 4: 7S with two cards of the same suit
     else if (has7S && (hand[0].suit == hand[1].suit || hand[1].suit == hand[2].suit || hand[0].suit == hand[2].suit)) {
         int suitCardValue = 0;
 
         for (int i = 0; i < 3; ++i) {
-            if (hand[i].suit == 'S') continue; // Ignore `7S`
+            if (hand[i].suit == 'S') continue; // Ignores 7S
             suitCardValue += hand[i].value;
         }
 
-        score = suitCardValue + 11; // Rule for `7S` + two same-suit cards
+        score = suitCardValue + 11; // Rule for 7S + two same-suit cards
     }
-    // Case 5: `7S` with unrelated cards
+    // Case 5: 7S with unrelated cards
     else if (has7S) {
         int highestValue = 0;
         for (int i = 0; i < 3; ++i) {
-            if (hand[i].suit == 'S' && hand[i].name == '7') continue; // Ignore `7S`
+            if (hand[i].suit == 'S' && hand[i].name == '7') continue; // Ignore 7S
             highestValue = std::max(highestValue, static_cast<int>(hand[i].value));
         }
 
@@ -327,7 +343,7 @@ int CalculateHand(Player& player) {
         score = highestValue;
     }
 
-    player.score = score; // Assign the calculated score to the player's balance
+    player.score = score;
     return score;
 }
 
@@ -430,7 +446,7 @@ void FillDeck() {
     }
 }
 
-Player* CreatePlayerArray(const int players_count) {
+Player* CreatePlayerArray(const int players_count) { // Fills the players array with fresh players
     Player* players = new Player[players_count];
     return players;
 }
@@ -446,6 +462,15 @@ int InputPlayers() {
         }
     } while (players_count < 2 || players_count > 9);
     return players_count;
+}
+
+void ClearFile(const char* filename) {
+    std::ofstream file(filename, std::ofstream::trunc); // Opens the file in truncate mode which clears the text
+    if (file.is_open()) {
+        file.close();
+    } else {
+        std::cerr << "Failed to open the file.\n";
+    }
 }
 
 void SaveGame(Player* players, int players_count, const char* saveFile) {
@@ -466,15 +491,16 @@ void SaveGame(Player* players, int players_count, const char* saveFile) {
 }
 
 // Reads the number of players and their balances from the saveFile
-bool LoadGame(Player*& players, int& players_count, const char* saveFile) {
+void LoadGame(Player*& players, int& players_count, const char* saveFile) {
     if (saveFile == nullptr) {
         cout << "Nullpointer error" << endl;
-        return false;
+
+        return;
     }
     ifstream file(saveFile);
     if (!file || file.peek() == ifstream::traits_type::eof()) {
         cout << "File is empty" << endl;
-        return false; // No previous game data available
+        return; // No previous game data available
     }
     file >> players_count;
     players = new Player[players_count];
@@ -482,7 +508,7 @@ bool LoadGame(Player*& players, int& players_count, const char* saveFile) {
         file >> players[i].balance;
     }
     file.close();
-    return true;
+    return;
 }
 
 bool CheckForContinue(Player*& players, int& players_count, const char* saveFile) {
@@ -520,27 +546,21 @@ bool FileEmptyOrNonExistent(const char* saveFile) {
 }
 
 // Returns only the players still in the game
-Player* FilterActivePlayers(Player* players, int& players_count) {
+void FilterActivePlayers(Player* players, int& players_count) { // should be void
     if (players == nullptr) {
         cout << "Nullpointer error" << endl;
-        return nullptr;
+        return;
     }
     for (int i = 0; i < players_count; ++i) {
         if (players[i].balance > 0) { 
             ++activePlayers; // How many players are still in the game
+            continue;
+        }
+        else {
+            players[i].isActive = false;
         }
     }
-
-    Player* activePlayersArr = new Player[activePlayers];
-    int index = 0;
-    for (int i = 0; i < players_count; ++i) {
-        if (players[i].balance > 0) {
-            activePlayersArr[index++] = players[i];
-        }
-    }
-    players_count = activePlayers;
-    delete[] players;
-    return activePlayersArr; 
+    return; 
 }
 
 void GameRound(Player*& players, const int players_count) {
@@ -557,9 +577,11 @@ void GameRound(Player*& players, const int players_count) {
     int highestScore, highestCount;
     int* highestPlayers = CalculateHighestHand(players, players_count, highestScore, highestCount);
 
-    while(highestCount != 1) { // TieBreaker
+    // TieBreaker
+    while(highestCount != 1) { 
         PlayersInTheTie(players, players_count, highestCount, highestPlayers); // Filter out the players not in the tie
         JoinTie(players, players_count);
+        ZeroBalanceInTie(players, players_count); // If a player has 0 balance upon joining the tie, gives 50pts
         InitializeRemainingIndices(); // randomize and refill the deck
         DealCards(players, players_count);
         BettingRound(players, players_count, currentBet);
@@ -569,7 +591,6 @@ void GameRound(Player*& players, const int players_count) {
     players[highestPlayers[0]].balance += pot;
     pot = 0;
     DisplayBalances(players, players_count);
-    // Determine winner
     
     for (int f = 0; f < players_count; ++f) {
         if(players[f].isActive == true) {
@@ -584,42 +605,49 @@ void GameRound(Player*& players, const int players_count) {
     }
 }
 
+void NewGame(Player** players, int &players_count) {
+    players_count = InputPlayers();
+    *players = CreatePlayerArray(players_count);
+    InitializeBalances(*players, players_count);
+    FillDeck();
+}
+
 int main() {
     const char saveFile[] = "game_data.txt";
     Player* players = nullptr;
     int players_count = 0;
 
-    if (!CheckForContinue(players, players_count, saveFile)) { // previous game not found or don't continue
-        players_count = InputPlayers();
-        players = CreatePlayerArray(players_count);
-        FillDeck();
+    if (!CheckForContinue(players, players_count, saveFile)) { // New Game (make a new function)
+        NewGame(&players, players_count);
     }
     else{ // previous game found -> continue
         LoadGame(players, players_count, saveFile);
         FillDeck();
-        cout << "The else" << endl;
     }
-    InitializeBalances(players, players_count);
     
     char playAgain;
     do {
         InitializeRemainingIndices();
-        players = FilterActivePlayers(players, players_count);
-
+        FilterActivePlayers(players, players_count);
         if (players_count == 0) {
             cout << "No players with positive balance. Game over!" << endl;
             break;
         }
         GameRound(players, players_count);
-        activePlayers = 0;
+        activePlayers = 0; // Resets the active players
         cout << "Game round completed." << endl;
+        if (GameIsOver(players, players_count)) {
+            ClearFile(saveFile);
+            cout << "We have a winner" << endl;
+            break;
+        }
         cout << "Do you want to play again? (y/n): ";
         cin >> playAgain;
 
         if (playAgain == 'n' || playAgain == 'N') {
             SaveGame(players, players_count, saveFile);
         }
-    } while (playAgain == 'y' || playAgain == 'Y');
+    } while ((playAgain == 'y' || playAgain == 'Y') && !GameIsOver(players, players_count));
 
     delete[] players;
     return 0;
