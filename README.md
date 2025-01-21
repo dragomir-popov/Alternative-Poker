@@ -22,3 +22,8 @@ The game uses the cards from 7 to Ace and their points are:
 Ace = 11, The face cards are worth 10, and the numbers are equal to their number.
 The names are 2 characters long - the first if for the kind and the second is for the suit. Example: Ace of Hears -> AH, Ten of Clubs -> TC, Seven of Spades -> 7S.
 Each player is dealt 3 cards and the strength of that hand is determined by the following rules:
+- Three identical cards form a combination are worth as many points as the leading card. For example, three eights give 24 points (3x8=24), while three queens give 30 points (3x10), and so on. An exception is the sevens – 3 sevens give 34 points, which is the strongest hand in the game.
+- If the cards are of the same suit, their points are added together.
+- Most cards do not form a combination when there are only 2 of a kind, except for aces and sevens. For instance, two aces and a third unmatched card will give 22 points. Two sevens and a third unmatched card will give 23 points.
+- The 7S (Seven of Spades) can combine with any cards. If there are 2 cards of the same rank and the 7S, the hand is valued at 2*(the points of those cards) + 11 (the bonus provided by the 7S). If there are 2 cards of the same suit and the 7S, the hand is valued at (the points of one card) + (the points of the other) + 11. If there are two cards of different suits and ranks with the 7S, the hand is valued at (the points of the higher card) + 11.
+- If no combination can be made among the cards, the value of the highest card is taken.
