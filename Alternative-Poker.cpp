@@ -37,6 +37,8 @@ bool Raise(Player& player, int& currentBet, int raiseAmount, Player* players);
 bool Call(Player& player, int currentBet, int playerBet);
 void Fold(Player& player, int &activePlayers);
 void BettingRound(Player* players, int currentBet);
+void ValidateRaiseAmount(Player* players, const int i, int &currentBet);
+int ValidateBettingChoice(const int currentBet, const int i);
 void HandlePlayerChoice(const int choice, Player* players, int &currentBet, bool &bettingComplete, int &i, int* playerBets, bool* hasActed);
 void PlayersMatchedBet(bool &bettingComplete, const int activePlayers, Player* players, const int currentBet, int *playerBets);
 int CalculateHand(Player& player);
@@ -250,10 +252,8 @@ void BettingRound(Player* players, int currentBet) {
                 break;
             }
             if (!players[i].isActive || hasActed[i]) continue; // Skip inactive or already acted players
-            cout << "Player " << (i + 1) << "'s turn. Current bet: " << currentBet << endl;
-            cout << "Options: 1) Raise  2) Call  3) Fold" << endl;
-            int choice;
-            cin >> choice;
+            
+            int choice = ValidateBettingChoice(currentBet, i); // Get a valid choice for betting: 1, 2 or 3
             HandlePlayerChoice(choice, players, currentBet, bettingComplete, i, playerBets, hasActed);
 
             if (activePlayers < 2) { // If only one player is left active, end the betting round immediately
@@ -268,21 +268,53 @@ void BettingRound(Player* players, int currentBet) {
     delete[] hasActed;
 }
 
+// returns a valid number between 1 and 3
+int ValidateBettingChoice(const int currentBet, const int i) {
+    char input;
+    int choice;
+
+    while (true) {
+        cout << "Player " << (i + 1) << "'s turn. Current bet: " << currentBet << endl;
+        cout << "Options: 1) Raise  2) Call  3) Fold" << endl;
+        cin >> input;
+        cin.ignore(1000, '\n'); // ignores the rest of the input after the first char
+
+        if (input >= '1' && input <= '3') {
+            choice = input - '0'; // Converts char to int
+            return choice;
+        } else {
+            cout << "Invalid input. Please enter a number between 1 and 3." << endl;
+        }
+    }
+    return choice;
+}
+
+void ValidateRaiseAmount(Player* players, const int i, int &currentBet) {
+    int raiseAmount;
+    bool validRaise = false;
+    while (!validRaise) {
+        cout << "Enter raise amount: ";
+        // handle invalid input
+        if (!(cin >> raiseAmount)) {
+            cin.clear();
+            cin.ignore(1000, '\n'); // Discards the rest of the input
+            cout << "Invalid raise. Max amount is " << MaxRaiseAmount(players, currentBet, raiseAmount) << endl;
+            cout << "Min amount is " << currentBet+1 << endl;
+            continue;
+        }
+        validRaise = Raise(players[i], currentBet, raiseAmount, players);
+        if (!validRaise) {
+            cout << "Invalid raise. Max amount is " << MaxRaiseAmount(players, currentBet, raiseAmount) << endl;
+            cout << "Min amount is " << currentBet+1 << endl;
+        }
+    }
+}
+
 // Depending on the player's choice call the appropriete function
 void HandlePlayerChoice(const int choice, Player* players, int &currentBet, bool &bettingComplete, int &i, int* playerBets, bool* hasActed) {
     switch (choice) {
         case 1: { // Raise
-            int raiseAmount;
-            bool validRaise = false;
-            while (!validRaise) {
-                cout << "Enter raise amount: ";
-                cin >> raiseAmount;
-                validRaise = Raise(players[i], currentBet, raiseAmount, players);
-                if (!validRaise) {
-                    cout << "Invalid raise. Max amount is " << MaxRaiseAmount(players, currentBet, raiseAmount) << endl;
-                    cout << "Min amount is " << currentBet+1 << endl;
-                }
-            }
+            ValidateRaiseAmount(players, i, currentBet);
             playerBets[i] = currentBet; // Update player bet
             bettingComplete = false; // Restart round
             
@@ -607,15 +639,21 @@ Player* CreatePlayerArray() {
 
 // Returns the valid number of players
 int InputPlayers() {
+    char input;
     int count;
-    do {
+
+    while (true) {
         cout << "Number of players (2-9): ";
-        cin >> count;
-        if (count < 2 || count > 9) {
+        cin >> input;
+        cin.ignore(1000, '\n'); // ignores the rest of the input after the first char
+
+        if (input >= '2' && input <= '9') {
+            count = input - '0'; // Converts char to int
+            return count;
+        } else {
             cout << "Invalid input. Please enter a number between 2 and 9." << endl;
         }
-    } while (count < 2 || count > 9);
-    return count;
+    }
 }
 
 // Clears all the data from the safe file
