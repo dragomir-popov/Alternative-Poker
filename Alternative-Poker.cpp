@@ -1,3 +1,17 @@
+/**
+ * 
+ * Solution to course project # 10
+ * Introduction to programming course
+ * Faculty of Mathematics and Informatics of Sofia University
+ * Winter semester 2023/2024
+ * 
+ * @author Dragomir Popov
+ * @idnumber 3MI0600498
+ * @compiler gcc
+ * 
+ * Main file with full functionallity
+ * 
+ */
 #include <iostream>
 #include <cmath>
 #include <ctime>
@@ -49,6 +63,8 @@ bool TwoSuitAnd7S(Card* hand, int &score);
 void HighCardAnd7S(Card* hand, int &score);
 bool TwoOfAKindAnd7S(Card* hand, int &score);
 bool ThreeOfAKind(Card* hand, int &score);
+bool TwoAces(Card* hand, int &score);
+bool Two7s(Card* hand, int &score);
 void HighCard(Card* hand, int &score);
 
 enum CardValues {
@@ -298,7 +314,7 @@ void HandlePlayerChoice(const int choice, Player* players, int &currentBet, bool
     }
 }
 
-// Ensure the loop only continues if all active players match the current bet
+// Ensure the betting only continues if all active players match the current bet
 void PlayersMatchedBet(bool &bettingComplete, const int activePlayers, Player* players, const int currentBet, int *playerBets) {
     if (activePlayers > 1) { 
         for (int i = 0; i < players_count; ++i) {
@@ -313,13 +329,43 @@ void PlayersMatchedBet(bool &bettingComplete, const int activePlayers, Player* p
 // Check if only 1 player with points is left
 bool GameIsOver(Player* players) {
     int remainingPlayers = 0;
-    for(int i = 0; i < players_count; ++i) {
+    for (int i = 0; i < players_count; ++i) {
         if(players[i].balance > 0) {
             remainingPlayers++;
         }
     }
     if (remainingPlayers < 2) {
         cout << "We have a winner" << endl;
+        return true;
+    }
+    return false;
+}
+
+// Check if the hand contains exactly 2 aces
+bool TwoAces(Card* hand, int &score) {
+    int aceCount = 0;
+    for (int i = 0; i < 3; i++) {
+        if (hand[i].name == 'A') {
+            aceCount++;
+        }
+    }
+    if (aceCount == 2) {
+        score = 22;
+        return true;
+    }
+    return false;
+}
+
+// Check if the hand contains exactly 2 sevens and an unrelated card
+bool Two7s(Card* hand, int &score) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+        if (hand[i].name == '7') {
+            count++;
+        }
+    }
+    if (count == 2) {
+        score = 23;
         return true;
     }
     return false;
@@ -416,37 +462,40 @@ int CalculateHand(Player& player) {
     Card* hand = player.hand;
     int score = 0; // Score/Strength of the hand 
     bool has7S = Has7S(hand); // Check for 7S
-    
-    if(has7S) {
-        // 7S with two identical cards
-        if(TwoOfAKindAnd7S(hand, score)) {
-            player.score = score;
-            return score;
-        }
-        // 7S with two cards of the same suit
-        else if (TwoSuitAnd7S(hand, score)) {
-            player.score = score;
-            return score;
-        }
-        // 7S with unrelated cards
-        else {
-            HighCardAnd7S(hand, score);
-            player.score = score;
-            return score;
-        }
-    }
+
     // Three identical cards
     if(ThreeOfAKind(hand, score)) {
         player.score = score;
         return score;
     }
-    // Three cards of the same suit
-    else if (SameSuit(hand, score)) {
+    if(has7S) {
+        if(TwoOfAKindAnd7S(hand, score)) { // 7S with two identical cards
+            player.score = score;
+            return score;
+        }
+        else if (TwoSuitAnd7S(hand, score)) { // 7S with two cards of the same suit
+            player.score = score;
+            return score;
+        }
+        else { // 7S with unrelated cards
+            HighCardAnd7S(hand, score);
+            player.score = score;
+            return score;
+        }
+    }
+    else if(TwoAces(hand, score)) { // TwoAces and an unrealated card
         player.score = score;
         return score;
     }
-    //  No combinations
-    else {
+    else if(Two7s(hand, score)) { // Two sevens and an unrelated card
+        player.score = score;
+        return score;
+    }
+    else if (SameSuit(hand, score)) { // Three cards of the same suit
+        player.score = score;
+        return score;
+    }
+    else { //  No combinations
         HighCard(hand, score);
         player.score = score;
     }
