@@ -60,10 +60,10 @@ void JoinTie(Player* players);
 void ZeroBalanceInTie(Player* players);
 void TieBreaker(int & highestCount, Player* players, int* highestPlayers, int &currentBet, int &highestScore);
 bool SameSuit(Card* hand, int &score);
-bool Has7S(Card* hand);
-bool TwoSuitAnd7S(Card* hand, int &score);
-void HighCardAnd7S(Card* hand, int &score);
-bool TwoOfAKindAnd7S(Card* hand, int &score);
+bool Has7C(Card* hand);
+bool TwoSuitAnd7C(Card* hand, int &score);
+void HighCardAnd7C(Card* hand, int &score);
+bool TwoOfAKindAnd7C(Card* hand, int &score);
 bool ThreeOfAKind(Card* hand, int &score);
 bool TwoAces(Card* hand, int &score);
 bool Two7s(Card* hand, int &score);
@@ -412,34 +412,34 @@ bool SameSuit(Card* hand, int &score) {
     return false;
 }
 
-// Check if a hand has 7S and two cards with the same suit
-bool TwoSuitAnd7S(Card* hand, int &score) {
+// Check if a hand has 7C and two cards with the same suit
+bool TwoSuitAnd7C(Card* hand, int &score) {
     if ((hand[0].suit == hand[1].suit || hand[1].suit == hand[2].suit || hand[0].suit == hand[2].suit)) {
         int suitCardValue = 0;
 
         for (int i = 0; i < 3; ++i) {
-            if (hand[i].suit == 'S') continue; // Ignores 7S
+            if (hand[i].suit == 'C') continue; // Ignores 7C
             suitCardValue += hand[i].value;
         }
-        score = suitCardValue + 11; // Rule for 7S + two same-suit cards
+        score = suitCardValue + 11; // Rule for 7C + two same-suit cards
         return true;
     }
     return false;
 }
 
-// Calculates the score for 7S and two unrelated cards and overwrites score
-void HighCardAnd7S(Card* hand, int &score) {
+// Calculates the score for 7C and two unrelated cards and overwrites score
+void HighCardAnd7C(Card* hand, int &score) {
     int highestValue = 0;
     for (int i = 0; i < 3; ++i) {
-        if (hand[i].suit == 'S' && hand[i].name == '7') continue; // Ignore 7S
+        if (hand[i].suit == 'C' && hand[i].name == '7') continue; // Ignore 7C
         highestValue = (hand[i].value > highestValue) ? hand[i].value : highestValue;
     }
     score = highestValue + 11;
     return;
 }
 
-// Check if a hand is 7S with two other of a kind
-bool TwoOfAKindAnd7S(Card* hand, int &score) {
+// Check if a hand is 7C with two other of a kind
+bool TwoOfAKindAnd7C(Card* hand, int &score) {
     if ((hand[0].name == hand[1].name || hand[1].name == hand[2].name || hand[0].name == hand[2].name)) {
         char identicalCard = hand[0].name == hand[1].name ? hand[0].name : hand[2].name;
         int identicalCardValue = 0;
@@ -451,7 +451,7 @@ bool TwoOfAKindAnd7S(Card* hand, int &score) {
                 break;
             }
         }
-        score = 2 * identicalCardValue + 11; // Rule for 7S + two identical cards
+        score = 2 * identicalCardValue + 11; // Rule for 7C + two identical cards
         return true;
     }
     return false;
@@ -479,10 +479,10 @@ void HighCard(Card* hand, int &score) {
         score = highestValue;
 }
 
-// Check if a hand contains 7S
-bool Has7S(Card* hand) {
+// Check if a hand contains 7C
+bool Has7C(Card* hand) {
     for (int i = 0; i < 3; ++i) {
-        if (hand[i].name == '7' && hand[i].suit == 'S') {
+        if (hand[i].name == '7' && hand[i].suit == 'C') {
             return true;
         }
     }
@@ -493,24 +493,24 @@ bool Has7S(Card* hand) {
 int CalculateHand(Player& player) {
     Card* hand = player.hand;
     int score = 0; // Score/Strength of the hand 
-    bool has7S = Has7S(hand); // Check for 7S
+    bool has7C = Has7C(hand); // Check for 7C
 
     // Three identical cards
     if(ThreeOfAKind(hand, score)) {
         player.score = score;
         return score;
     }
-    if(has7S) {
-        if(TwoOfAKindAnd7S(hand, score)) { // 7S with two identical cards
+    if(has7C) {
+        if(TwoOfAKindAnd7C(hand, score)) { // 7C with two identical cards
             player.score = score;
             return score;
         }
-        else if (TwoSuitAnd7S(hand, score)) { // 7S with two cards of the same suit
+        else if (TwoSuitAnd7C(hand, score)) { // 7C with two cards of the same suit
             player.score = score;
             return score;
         }
-        else { // 7S with unrelated cards
-            HighCardAnd7S(hand, score);
+        else { // 7C with unrelated cards
+            HighCardAnd7C(hand, score);
             player.score = score;
             return score;
         }
