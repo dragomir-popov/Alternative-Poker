@@ -38,10 +38,14 @@ bool Call(Player& player, int currentBet, int playerBet);
 void Fold(Player& player, int &activePlayers);
 void BettingRound(Player* players, int currentBet);
 void ValidateRaiseAmount(Player* players, const int i, int &currentBet);
+int MaxRaiseAmount(Player* players, const int currentBet, const int raiseAmount);
+int MinRaiseAmount(const int currentBet, const int maxRaiseAmount);
 int ValidateBettingChoice(const int currentBet, const int i);
 void HandlePlayerChoice(const int choice, Player* players, int &currentBet, bool &bettingComplete, int &i, int* playerBets, bool* hasActed);
 void PlayersMatchedBet(bool &bettingComplete, const int activePlayers, Player* players, const int currentBet, int *playerBets);
+void PayCurrentBet(Player* players, const int currentBet);
 int CalculateHand(Player& player);
+int* CalculateHighestHand(Player* players, int& highestScore, int& highestCount);
 void InitializeRemainingIndices();
 Card* DealCard();
 void DealCards(Player*& players);
@@ -58,7 +62,7 @@ void DisplayBalances(Player* players);
 void PlayersInTheTie(Player* players, const int highestCount, int * highestPlayers);
 void JoinTie(Player* players);
 void ZeroBalanceInTie(Player* players);
-void TieBreaker(int & highestCount, Player* players, int* highestPlayers, int &currentBet, int &highestScore);
+void TieBreaker(int & highestCount, Player* players, int*& highestPlayers, int &currentBet, int &highestScore);
 bool SameSuit(Card* hand, int &score);
 bool Has7C(Card* hand);
 bool TwoSuitAnd7C(Card* hand, int &score);
@@ -182,7 +186,7 @@ void TakeInitialBet(Player* players) {
 }
 
 // sets maxAmount to the lowest player's balance
-int MaxRaiseAmount (Player* players, const int currentBet, const int raiseAmount) {
+int MaxRaiseAmount(Player* players, const int currentBet, const int raiseAmount) {
     int maxAmount = players[0].balance;
     for(int i = 0; i < players_count; ++i) {
         if(players[i].isActive) { 
@@ -194,16 +198,21 @@ int MaxRaiseAmount (Player* players, const int currentBet, const int raiseAmount
     return maxAmount;
 }
 
+int MinRaiseAmount(const int currentBet, const int maxRaiseAmount) {
+    if (currentBet == maxRaiseAmount) {
+        return currentBet;
+    }
+    return (currentBet + CHIP_VALUE);
+}
+
 // Returns true if the player raises successfully
 bool Raise(Player& player, int& currentBet, const int raiseAmount, Player* players) {
-    if (raiseAmount < CHIP_VALUE || raiseAmount <= currentBet || raiseAmount > player.balance) {
+    if ((raiseAmount < (currentBet+CHIP_VALUE)) || (raiseAmount <= currentBet) || (raiseAmount > player.balance)) {
         return false;
     }
     if(raiseAmount > MaxRaiseAmount(players, currentBet, raiseAmount)) {
         return false;
     }
-    player.balance -= raiseAmount;
-    pot += raiseAmount;
     currentBet = raiseAmount;
     return true;
 }
@@ -220,9 +229,6 @@ bool Call(Player& player, const int currentBet, const int playerBet) {
         cout << "Not enough balance to call." << endl;
         return false;
     }
-
-    player.balance -= amountToCall;
-    pot += amountToCall;
     return true;
 }
 
@@ -231,6 +237,16 @@ void Fold(Player& player, int &activePlayers) {
     player.isActive = false;
     --activePlayers; 
     cout << "Player folded." << endl;
+}
+
+// after betting take currentBet from those who called/raised and add them to the pot
+void PayCurrentBet(Player* players, const int currentBet) {
+    for (int j = 0; j < players_count; j++) {
+        if(players[j].isActive) { 
+            players[j].balance -= currentBet;
+            pot += currentBet;
+        }
+    } 
 }
 
 // The players give their bets
@@ -245,7 +261,7 @@ void BettingRound(Player* players, int currentBet) {
 
     while (!bettingComplete) {
         bettingComplete = true;
-
+        DisplayBalances(players);
         for (int i = 0; i < players_count; ++i) {
             if (activePlayers < 2) { // End betting round if fewer than 2 active players
                 bettingComplete = true;
@@ -264,7 +280,8 @@ void BettingRound(Player* players, int currentBet) {
         // Ensure the loop only continues if all active players match the current bet
         PlayersMatchedBet(bettingComplete, activePlayers, players, currentBet, playerBets);
     }  
-    delete[] playerBets; // Free allocated memory
+    PayCurrentBet(players, currentBet); 
+    delete[] playerBets; 
     delete[] hasActed;
 }
 
@@ -289,23 +306,25 @@ int ValidateBettingChoice(const int currentBet, const int i) {
     return choice;
 }
 
+// handles the input and if it's not expected
 void ValidateRaiseAmount(Player* players, const int i, int &currentBet) {
     int raiseAmount;
     bool validRaise = false;
+    int maxRaiseAmount = MaxRaiseAmount(players, currentBet, raiseAmount);
     while (!validRaise) {
         cout << "Enter raise amount: ";
         // handle invalid input
         if (!(cin >> raiseAmount)) {
             cin.clear();
             cin.ignore(1000, '\n'); // Discards the rest of the input
-            cout << "Invalid raise. Max amount is " << MaxRaiseAmount(players, currentBet, raiseAmount) << endl;
-            cout << "Min amount is " << currentBet+1 << endl;
+            cout << "Invalid raise. Max amount is " << maxRaiseAmount << endl;
+            cout << "Min amount is " << MinRaiseAmount(currentBet, maxRaiseAmount) << endl;
             continue;
         }
         validRaise = Raise(players[i], currentBet, raiseAmount, players);
         if (!validRaise) {
-            cout << "Invalid raise. Max amount is " << MaxRaiseAmount(players, currentBet, raiseAmount) << endl;
-            cout << "Min amount is " << currentBet+1 << endl;
+            cout << "Invalid raise. Max amount is " << maxRaiseAmount << endl;
+            cout << "Min amount is " << MinRaiseAmount(currentBet, maxRaiseAmount) << endl;
         }
     }
 }
@@ -461,7 +480,7 @@ bool TwoOfAKindAnd7C(Card* hand, int &score) {
 bool ThreeOfAKind(Card* hand, int &score) {
     if (hand[0].name == hand[1].name && hand[1].name == hand[2].name) {
         if (hand[0].name == '7') {
-            score = 34; // Special case: three 7s
+            score = 34; // Special case: three 7C
         } else {
             score = 3 * hand[0].value;
         }
@@ -544,7 +563,6 @@ int* CalculateHighestHand(Player* players, int& highestScore, int& highestCount)
     highestCount = 0;
     // Dynamically allocates an array to store indices of players with the highest score
     int* highestPlayers = new int[players_count];
-
     // Iterates through the players to find the highest score and the corresponding players
     for (int i = 0; i < players_count; ++i) {
         if (players[i].isActive) {
@@ -556,7 +574,7 @@ int* CalculateHighestHand(Player* players, int& highestScore, int& highestCount)
                 highestPlayers[0] = i; // Start fresh with this player
             } else if (handValue == highestScore) { // Tie for the highest score  
                 highestPlayers[highestCount] = i;
-                ++highestCount;
+                highestCount++;
             }
         }
     }
@@ -590,7 +608,6 @@ Card* DealCard() {
         cout << "No more cards left" << endl;
         return nullptr;
     }
-
     int randIndex = rand() % remainingCount; // Randomly pick an index within the remaining range
     int cardIndex = remainingIndices[randIndex];
     // Replace the used index with the last available index
@@ -717,14 +734,14 @@ bool CheckForContinue(Player*& players, const char* saveFile) {
     return false;
 }
 
+// returns true if the save file is empty or if it doesn't exist
 bool FileEmptyOrNonExistent(const char* saveFile) {
     if (saveFile == nullptr) {
         cout << "Nullpointer error" << endl;
         return true;
     }
     std::ifstream file(saveFile, std::ios::binary); // Open the file in binary mode
-    if (!file.is_open()) {
-        // File doesn't exist
+    if (!file.is_open()) { // File doesn't exist   
         return true;
     }
 
@@ -756,18 +773,24 @@ void FilterActivePlayers(Player* players) {
 }
 
 // In case of a tie the betting continues
-void TieBreaker(int & highestCount, Player* players, int* highestPlayers, int &currentBet, int &highestScore) {
+void TieBreaker(int &highestCount, Player* players, int*& highestPlayers, int &currentBet, int &highestScore) {
+    if (players == nullptr) {
+        cout << "Nullpointer error" << endl;
+        return;
+    }
     while(highestCount != 1) { 
         PlayersInTheTie(players, highestCount, highestPlayers); // Filter out the players not in the tie
-        JoinTie(players);
+        JoinTie(players); // ask the non active players if they wish to pay half the pot to join
         ZeroBalanceInTie(players); // If a player has 0 balance upon joining the tie, gives 50pts
         InitializeRemainingIndices(); // randomize and refill the deck
         DealCards(players);
         BettingRound(players, currentBet);
+        delete[] highestPlayers;
         highestPlayers = CalculateHighestHand(players, highestScore, highestCount);
     }
 }
 
+// a round starts after the start of the game and ends when a player wins the hand
 void GameRound(Player*& players) {
     if (players == nullptr) {
         cout << "Nullpointer error" << endl;
@@ -820,7 +843,7 @@ void GameStart(Player*& players, const char saveFile[]) {
 }
 
 int main() {
-    const char saveFile[] = "game_data.txt";
+    const char saveFile[] = "game_data.txt"; // The name of the save file
     Player* players = nullptr;
     GameStart(players, saveFile);
 
