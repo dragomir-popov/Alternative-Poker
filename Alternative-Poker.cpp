@@ -43,7 +43,7 @@ int MinRaiseAmount(const int currentBet, const int maxRaiseAmount);
 int ValidateBettingChoice(const int currentBet, const int i);
 void HandlePlayerChoice(const int choice, Player* players, int &currentBet, bool &bettingComplete, int &i, int* playerBets, bool* hasActed);
 void PlayersMatchedBet(bool &bettingComplete, const int activePlayers, Player* players, const int currentBet, int *playerBets);
-void PayCurrentBet(Player* players, const int currentBet);
+void PayPlayerBet(Player* players, const int currentBet, int* playerBets);
 int CalculateHand(Player& player);
 int* CalculateHighestHand(Player* players, int& highestScore, int& highestCount);
 void InitializeRemainingIndices();
@@ -93,7 +93,7 @@ int activePlayers = 0; // active players are dealt cards and can bet
 // Output each player's balance and the pot
 void DisplayBalancesAndPot(Player* players) {
     if (players == nullptr) {
-        cout << "Nullpointer error" << endl;
+        cout << "players are null" << endl;
         return;
     }
     for(int q = 0; q < players_count; ++q) {
@@ -107,6 +107,10 @@ void DisplayBalancesAndPot(Player* players) {
 
 // Asks every inactive player to join the tie
 void JoinTie(Player* players) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return;
+    }
     int addToPot = 0; 
     int halfPot = (pot/2);
     for(int i = 0; i < players_count; i++) {
@@ -126,6 +130,10 @@ void JoinTie(Player* players) {
 
 // Gives active players in the tie 50 points to bet with
 void ZeroBalanceInTie(Player* players) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return;
+    }
     for(int i = 0; i < players_count; ++i) {
         if(players[i].isActive && players[i].balance < 1) {
             players[i].balance += 50;
@@ -185,6 +193,10 @@ void TakeInitialBet(Player* players) {
 
 // sets maxAmount to the lowest player's balance
 int MaxRaiseAmount(Player* players, const int currentBet, const int raiseAmount) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return 0;
+    }
     int maxAmount = players[0].balance;
     for(int i = 0; i < players_count; ++i) {
         if(players[i].isActive) { 
@@ -205,6 +217,10 @@ int MinRaiseAmount(const int currentBet, const int maxRaiseAmount) {
 
 // Returns true if the player raises successfully
 bool Raise(Player& player, int& currentBet, const int raiseAmount, Player* players) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return false;
+    }
     if ((raiseAmount < (currentBet+CHIP_VALUE)) || (raiseAmount <= currentBet) || (raiseAmount > player.balance)) {
         return false;
     }
@@ -227,6 +243,7 @@ bool Call(Player& player, const int currentBet, const int playerBet) {
         cout << "Not enough balance to call." << endl;
         return false;
     }
+
     return true;
 }
 
@@ -238,11 +255,15 @@ void Fold(Player& player, int &activePlayers) {
 }
 
 // after betting take currentBet from those who called/raised and add them to the pot
-void PayCurrentBet(Player* players, const int currentBet) {
-    for (int j = 0; j < players_count; j++) {
-        if(players[j].isActive) { 
-            players[j].balance -= currentBet;
-            pot += currentBet;
+void PayPlayerBet(Player* players, const int currentBet, int* playerBets) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return;
+    }
+    for (int i = 0; i < players_count; i++) {
+        if(players[i].balance >= 0) { // if the player doesn't have a negative balance
+            players[i].balance -= playerBets[i];
+            pot += playerBets[i];
         }
     } 
 }
@@ -264,10 +285,8 @@ void BettingRound(Player* players, int currentBet) {
                 break;
             }
             if (!players[i].isActive || hasActed[i]) continue; // Skip inactive or already acted players
-            
             int choice = ValidateBettingChoice(currentBet, i); // Get a valid choice for betting: 1, 2 or 3
             HandlePlayerChoice(choice, players, currentBet, bettingComplete, i, playerBets, hasActed);
-
             if (activePlayers < 2) { // If only one player is left active, end the betting round immediately
                 bettingComplete = true;
                 break;
@@ -276,7 +295,7 @@ void BettingRound(Player* players, int currentBet) {
         // Ensure the loop only continues if all active players match the current bet
         PlayersMatchedBet(bettingComplete, activePlayers, players, currentBet, playerBets);
     }  
-    PayCurrentBet(players, currentBet); 
+    PayPlayerBet(players, currentBet, playerBets); 
     delete[] playerBets; 
     delete[] hasActed;
 }
@@ -285,7 +304,6 @@ void BettingRound(Player* players, int currentBet) {
 int ValidateBettingChoice(const int currentBet, const int i) {
     char input;
     int choice;
-
     while (true) {
         cout << "Player " << (i + 1) << "'s turn. Current bet: " << currentBet << endl;
         cout << "Options: 1) Raise  2) Call  3) Fold" << endl;
@@ -304,6 +322,10 @@ int ValidateBettingChoice(const int currentBet, const int i) {
 
 // handles the input and if it's not expected
 bool ValidRaiseAmount(Player* players, const int i, int &currentBet) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return false;
+    }
     int raiseAmount;
     bool validRaise = false;
     int maxRaiseAmount = MaxRaiseAmount(players, currentBet, raiseAmount);
@@ -364,6 +386,10 @@ void HandlePlayerChoice(const int choice, Player* players, int &currentBet, bool
 
 // Ensure the betting only continues if all active players match the current bet
 void PlayersMatchedBet(bool &bettingComplete, const int activePlayers, Player* players, const int currentBet, int *playerBets) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return;
+    }
     if (activePlayers > 1) { 
         for (int i = 0; i < players_count; ++i) {
             if (players[i].isActive && playerBets[i] < currentBet) {
@@ -376,6 +402,10 @@ void PlayersMatchedBet(bool &bettingComplete, const int activePlayers, Player* p
 
 // Check if only 1 player with points is left
 bool GameIsOver(Player* players) {
+    if (players == nullptr) {
+        cout << "players are null" << endl;
+        return true;
+    }
     int remainingPlayers = 0;
     for (int i = 0; i < players_count; ++i) {
         if(players[i].balance > 0) {
@@ -391,6 +421,10 @@ bool GameIsOver(Player* players) {
 
 // Check if the hand contains exactly 2 aces
 bool TwoAces(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return false;
+    }
     int aceCount = 0;
     for (int i = 0; i < 3; i++) {
         if (hand[i].name == 'A') {
@@ -406,6 +440,10 @@ bool TwoAces(Card* hand, int &score) {
 
 // Check if the hand contains exactly 2 sevens and an unrelated card
 bool Two7s(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return false;
+    }
     int count = 0;
     for (int i = 0; i < 3; i++) {
         if (hand[i].name == '7') {
@@ -421,6 +459,10 @@ bool Two7s(Card* hand, int &score) {
 
 // Check if a hand is three of the same suit
 bool SameSuit(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return false;
+    }
     if (hand[0].suit == hand[1].suit && hand[1].suit == hand[2].suit) {
         score = hand[0].value + hand[1].value + hand[2].value;
         return true;
@@ -430,6 +472,10 @@ bool SameSuit(Card* hand, int &score) {
 
 // Check if a hand has 7C and two cards with the same suit
 bool TwoSuitAnd7C(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return false;
+    }
     if ((hand[0].suit == hand[1].suit || hand[1].suit == hand[2].suit || hand[0].suit == hand[2].suit)) {
         int suitCardValue = 0;
 
@@ -445,6 +491,10 @@ bool TwoSuitAnd7C(Card* hand, int &score) {
 
 // Calculates the score for 7C and two unrelated cards and overwrites score
 void HighCardAnd7C(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return;
+    }
     int highestValue = 0;
     for (int i = 0; i < 3; ++i) {
         if (hand[i].suit == 'C' && hand[i].name == '7') continue; // Ignore 7C
@@ -456,6 +506,10 @@ void HighCardAnd7C(Card* hand, int &score) {
 
 // Check if a hand is 7C with two other of a kind
 bool TwoOfAKindAnd7C(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return false;
+    }
     if ((hand[0].name == hand[1].name || hand[1].name == hand[2].name || hand[0].name == hand[2].name)) {
         char identicalCard = hand[0].name == hand[1].name ? hand[0].name : hand[2].name;
         int identicalCardValue = 0;
@@ -475,6 +529,10 @@ bool TwoOfAKindAnd7C(Card* hand, int &score) {
 
 // Check if a hand has 3 cards of the same kind
 bool ThreeOfAKind(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return false;
+    }
     if (hand[0].name == hand[1].name && hand[1].name == hand[2].name) {
         if (hand[0].name == '7') {
             score = 34; // Special case: three 7C
@@ -488,6 +546,10 @@ bool ThreeOfAKind(Card* hand, int &score) {
 
 // Finds the value of the highest card in hand
 void HighCard(Card* hand, int &score) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return;
+    }
     int highestValue = 0;
         for (int i = 0; i < 3; ++i) {
             highestValue = (hand[i].value > highestValue) ? hand[i].value : highestValue;
@@ -497,6 +559,10 @@ void HighCard(Card* hand, int &score) {
 
 // Check if a hand contains 7C
 bool Has7C(Card* hand) {
+    if (hand == nullptr) {
+        cout << "hand is null" << endl;
+        return false;
+    }
     for (int i = 0; i < 3; ++i) {
         if (hand[i].name == '7' && hand[i].suit == 'C') {
             return true;
